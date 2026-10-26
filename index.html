@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Conexión Bíblica · Práctica</title>
+<style>
+  body{font:17px/1.5 system-ui,sans-serif;color:#111;background:#fff;max-width:560px;margin:0 auto;padding:2rem 1.25rem}
+  h1{font-size:1.4rem;margin:0 0 1.5rem} h2{font-size:1rem;margin:1.5rem 0 .5rem;color:#555}
+  button,input{font:inherit;padding:.6rem .9rem;border:1px solid #111;background:#fff;border-radius:6px;cursor:pointer}
+  button:hover:not(:disabled){background:#111;color:#fff} button:disabled{opacity:.3;cursor:default}
+  input{cursor:text;margin-right:.5rem} .fila{display:flex;flex-wrap:wrap;gap:.5rem}
+  .op{display:block;width:100%;text-align:left;margin:.5rem 0} .ok{background:#e6f4ea;border-color:#1a7f37}
+  .mal{background:#fdeaea;border-color:#c00} .peq{color:#777;font-size:.85rem} .num{font-size:2.5rem;margin:1rem 0}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="preguntas.js"></script>
+<script src="storage.js"></script>
+<script src="engine.js"></script>
+<script src="tips.js"></script>
+<script>
+const app = document.getElementById('app');
+const ROM = ['','I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII','XIII','XIV','XV','XVI','XVII','XVIII','XIX','XX','XXI','XXII'];
+const esc = s => s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let quiz = null;
+
+function inicio() {
+  app.innerHTML = `<h1>Conexión Bíblica · Práctica</h1>
+    <input id="n" placeholder="Tu nombre o apodo" maxlength="24"><button id="go">Iniciar</button>`;
+  const go = () => { const v = document.getElementById('n').value.trim(); if (v) { Store.setNick(v); menu(); } };
+  document.getElementById('go').onclick = go;
+  document.getElementById('n').onkeydown = e => e.key === 'Enter' && go();
+}
+
+function menu() {
+  let h = `<h1>Hola, ${esc(Store.nick())}</h1>`;
+  for (const b of Object.keys(Store.BLOQUES)) {
+    const r = Store.resumenBloque(b);
+    h += `<h2>Bloque ${b}${r.t ? ` · ${r.c}/${r.t} (${r.pct}%)` : ''}</h2><div class="fila">`;
+    for (const { n, r: x } of r.caps)
+      h += `<button ${PREGUNTAS[n] ? `onclick="preparar(${n})"` : 'disabled'}>${ROM[n]}${x ? ` · ${x.mejor.c}/${x.mejor.t}` : ''}</button>`;
+    h += '</div>';
+  }
+  app.innerHTML = h + `<p class="peq"><a href="#" onclick="if(confirm('¿Borrar todo tu progreso?')){Store.reset();inicio()}">Borrar progreso</a></p>`;
+}
+
+function preparar(cap) {
+  quiz = Engine.crear(cap); let n = 5;
+  app.innerHTML = `<h1>Prepárate</h1><div class="num" id="c">${n}</div><p class="peq">${esc(tipAleatorio())}</p>`;
+  const t = setInterval(() => { n--; if (n <= 0) { clearInterval(t); pregunta(); } else document.getElementById('c').textContent = n; }, 1000);
+}
+
+function pregunta() {
+  const p = quiz.actual();
+  app.innerHTML = `<p class="peq">Capítulo ${ROM[quiz.cap]} · ${p.n} de ${p.total} · <span id="t"></span> s</p>
+    <h1>${esc(p.texto)}</h1><div id="ops">${p.opciones.map((o, i) => `<button class="op" data-i="${i}">${esc(o)}</button>`).join('')}</div>
+    <p id="fb"></p><button id="sig" hidden></button>`;
+  const mostrar = r => {
+    if (!r) return;
+    const bs = document.querySelectorAll('.op'); bs.forEach(b => b.disabled = true);
+    bs[r.correcta].classList.add('ok');
+    document.getElementById('fb').textContent = r.ok ? '✓ Correcto' : '✗ Incorrecto';
+    const sig = document.getElementById('sig'); sig.hidden = false; sig.textContent = p.n === p.total ? 'Ver resultado' : 'Siguiente';
+    sig.onclick = () => quiz.siguiente() ? pregunta() : resultado();
+  };
+  document.querySelectorAll('.op').forEach(b => b.onclick = () => {
+    const r = quiz.responder(+b.dataset.i); if (r && !r.ok) b.classList.add('mal'); mostrar(r);
+  });
+  quiz.iniciarTiempo(t => document.getElementById('t').textContent = t, mostrar);
+}
+
+function resultado() {
+  const r = quiz.resultado(); Store.guardar(r.cap, r.c, r.t);
+  const b = Store.resumenBloque(Store.bloqueDe(r.cap)), g = Store.resumenGeneral();
+  let h = `<h1>Capítulo ${ROM[r.cap]}</h1><div class="num">${r.c}/${r.t}</div>`;
+  if (b.completo) h += `<h2>Bloque ${b.bloque} completo</h2><p>${b.c}/${b.t} · ${b.pct}%</p>`;
+  if (g.completo) h += `<h2>Resultado general</h2><p>${g.c}/${g.t} · ${g.pct}%</p><p class="peq">Para repasar: capítulos ${g.debiles.map(n => ROM[n]).join(', ')}</p>`;
+  app.innerHTML = h + `<div class="fila"><button onclick="preparar(${r.cap})">Intentar de nuevo</button><button onclick="menu()">Volver</button></div>`;
+}
+
+const errores = Engine.validar(); if (errores.length) console.warn('Errores en el banco:', errores);
+Store.nick() ? menu() : inicio();
+</script>
+</body>
+</html>
