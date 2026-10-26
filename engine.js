@@ -11,6 +11,12 @@ const Engine = (() => {
       if (!Array.isArray(ops) || ops.length !== 4) e.push(id + ': debe tener 4 opciones');
       else if (new Set(ops).size !== 4) e.push(id + ': opciones repetidas');
       if (!Number.isInteger(ok) || ok < 0 || ok > 3) e.push(id + ': índice correcto inválido');
+      // Aviso de "pista por longitud": la correcta no debe destacar por larga ni por corta.
+      if (Array.isArray(ops) && ops.length === 4 && ok >= 0 && ok <= 3) {
+        const otras = ops.filter((_, k) => k !== ok).map(o => o.length), prom = otras.reduce((a, b) => a + b, 0) / 3;
+        if (ops[ok].length > prom * 1.3) e.push(id + ': la correcta es mucho más larga que las demás (se nota)');
+        if (ops[ok].length < prom * 0.7) e.push(id + ': la correcta es mucho más corta que las demás (se nota)');
+      }
     });
     return e;
   }
