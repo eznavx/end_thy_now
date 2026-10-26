@@ -31,7 +31,7 @@ function inicio() {
     <input id="n" placeholder="Tu nombre o apodo" maxlength="24"><button id="go">Iniciar</button>`;
   const go = () => { const v = document.getElementById('n').value.trim(); if (v) { Store.setNick(v); menu(); } };
   document.getElementById('go').onclick = go;
-  document.getElementById('n').onkeydown = e => e.key === 'Enter' && go();
+  document.getElementById('n').addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
 }
 
 function menu() {
